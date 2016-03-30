@@ -18,3 +18,5 @@ docker run \
 # function getPathFromUrl(url) {
 #   return url.split(/[?#]/)[0];
 # }
+sleep 5
+psql postgres://bookhouseuser:bookhousepass@dockerhost:5432/bookhousedb

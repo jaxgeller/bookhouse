@@ -1,0 +1,28 @@
+{
+  "name": "",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "license": "",
+  "scripts": {
+    "start": "webpack-dev-server --hot --port 3000 --colors --inline --progress --content-base src/ --history-api-fallback",
+    "build": "NODE_ENV=production webpack -p"
+  },
+  "dependencies": {
+    "axios": "^0.9.1",
+    "immutable": "^3.7.6",
+    "react": "^0.14.7",
+    "react-dom": "^0.14.7",
+    "react-router": "^2.0.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.7.4",
+    "babel-loader": "^6.2.4",
+    "babel-preset-es2015": "^6.6.0",
+    "babel-preset-react": "^6.5.0",
+    "babel-preset-react-hmre": "^1.1.1",
+    "babel-preset-stage-0": "^6.5.0",
+    "webpack": "^1.12.14",
+    "webpack-dev-server": "^1.14.1"
+  }
+}
