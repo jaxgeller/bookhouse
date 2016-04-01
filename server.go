@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http/httputil"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
@@ -39,7 +40,7 @@ func main() {
 	db.Create(&Book{Title: "Da Vinci Code", Author: "Dan Brown", FullUrl: "http://www.amazon.com/Da-Vinci-Code-Dan-Brown/dp/0307474275", Img: "http://ecx.images-amazon.com/images/I/41cXJLj3BkL._SX277_BO1,204,203,200_.jpg", Host: "www.amazon.com", Path: "/Da-Vinci-Code-Dan-Brown/dp/0307474275/ref=sr_1_2"})
 
 	r := gin.Default()
-	r.Use(CORSMiddleware())
+	// r.Use(CORSMiddleware())
 	v1 := r.Group("api")
 
 	v1.GET("/book", GetBook)
@@ -47,17 +48,17 @@ func main() {
 	r.Run(":8080")
 }
 
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
+// func CORSMiddleware() gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+// 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+// 		if c.Request.Method == "OPTIONS" {
+// 			c.Abort()
+// 			return
+// 		}
+// 		c.Next()
+// 	}
+// }
 
 func GetBook(c *gin.Context) {
 	u := c.Query("url")
@@ -75,15 +76,18 @@ func GetBook(c *gin.Context) {
 	var book Book
 	db.Where("host LIKE ? AND path LIKE ?", "%"+url.Host, url.Path+"%").First(&book)
 
+	log.Println("Received", url.Path)
+
 	if book.ID != 0 {
-		log.Print("Book with ID ", book.ID, " found")
+		log.Print("Found in DB ", book.ID)
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 		c.JSON(200, book)
 		return
 	} else {
-		log.Print(url.Path, " not found with host ", url.Host)
-		// proxy := httputil.NewSingleHostReverseProxy(url)
-		// proxy.ServeHTTP(c.Writer, c.Request)
-
+		log.Print("Not found, reverse proxing ")
+		proxy := httputil.NewSingleHostReverseProxy(url)
+		proxy.ServeHTTP(c.Writer, c.Request)
+		return
 	}
 }
 

@@ -21,8 +21,10 @@ export default class AddBook extends React.Component {
   submitForm = (e) => {
     e.preventDefault()
     const url = this.parseURL(this.state.atom.get('url'));
-    API.get(`/book?url=http://${url.hostname}${url.pathname}`)
-      .then(res => console.log(res))
+    API(`/book?url=http://${url.hostname}${url.pathname}`)
+      .then(res => {
+        console.log(res.headers.get('Content-Type'))
+      })
       .catch(err => console.log(err))
   }
 
