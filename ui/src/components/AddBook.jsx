@@ -7,8 +7,10 @@ export default class AddBook extends React.Component {
     super(props)
     this.state = {
       atom: Immutable.fromJS({
-        url: null
-      })
+        url: null,
+        books: [],
+      }),
+      loading: false
     }
   }
 
@@ -21,15 +23,17 @@ export default class AddBook extends React.Component {
   submitForm = (e) => {
     e.preventDefault()
     const url = this.parseURL(this.state.atom.get('url'));
+    this.setState({loading: true})
     API(`/book?url=http://${url.hostname}${url.pathname}`)
+      .then(res => res.json())
       .then(res => {
-        console.log(res.headers.get('Content-Type'))
+        const books = this.state.atom.get('books')
+        this.setState({
+          atom: this.state.atom.set('books', this.state.atom.get('books').push(res)),
+          loading: false
+        })
       })
       .catch(err => console.log(err))
-  }
-
-  renderProxied = (res) => {
-
   }
 
   handleValChange = (e) => {
@@ -39,9 +43,24 @@ export default class AddBook extends React.Component {
   }
 
   render() {
-    return <form onSubmit={this.submitForm}>
-      <div><input type="text" name="url" onChange={this.handleValChange}/></div>
-      <input type="submit"/>
-    </form>
+    return <div>
+      <div>
+        <form onSubmit={this.submitForm}>
+          <div>
+            <input style={{width:"100%", height: "50px"}} type="text" name="url" onChange={this.handleValChange}/>
+          </div>
+          <input type="submit"/>
+        </form>
+      </div>
+      {this.state.loading ? <p>Loading</p> : null}
+      <div className="book">
+        {this.state.atom.get('books').map((item, index) => {
+          return <div key={index}>
+            <h3>{item.Title}</h3>
+            <img src={item.Img.replace(/\"/g,'')} alt=""/>
+          </div>;
+        })}
+      </div>
+    </div>;
   }
 }

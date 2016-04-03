@@ -2,9 +2,11 @@ package main
 
 import (
 	"log"
-	"net/http/httputil"
 	"net/url"
+	"regexp"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -40,28 +42,39 @@ func main() {
 	db.Create(&Book{Title: "Da Vinci Code", Author: "Dan Brown", FullUrl: "http://www.amazon.com/Da-Vinci-Code-Dan-Brown/dp/0307474275", Img: "http://ecx.images-amazon.com/images/I/41cXJLj3BkL._SX277_BO1,204,203,200_.jpg", Host: "www.amazon.com", Path: "/Da-Vinci-Code-Dan-Brown/dp/0307474275/ref=sr_1_2"})
 
 	r := gin.Default()
-	// r.Use(CORSMiddleware())
 	v1 := r.Group("api")
 
 	v1.GET("/book", GetBook)
-	v1.POST("/book", SaveBook)
 	r.Run(":8080")
 }
 
-// func CORSMiddleware() gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-// 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-// 		if c.Request.Method == "OPTIONS" {
-// 			c.Abort()
-// 			return
-// 		}
-// 		c.Next()
-// 	}
-// }
+func scrape(u string, ch chan<- Book) {
+	url, err := url.Parse(u)
+	doc, err := goquery.NewDocument(u)
+	if err != nil {
+		log.Fatal(err)
+	}
+	img := doc.Find("#imgBlkFront").AttrOr("data-a-dynamic-image", "not found")
+	var author []string
+	doc.Find("#byline").Find(".author .contributorNameID").Each(func(i int, s *goquery.Selection) {
+		author = append(author, s.Text())
+	})
+	r, _ := regexp.Compile("\"(.*?)\"")
+	book := Book{
+		Title:   doc.Find("#productTitle").Text(),
+		Author:  strings.Join(author, ", "),
+		Img:     r.FindString(img),
+		FullUrl: u,
+		Host:    url.Host,
+		Path:    url.Path,
+	}
+	db.Create(&book)
+	ch <- book
+}
 
 func GetBook(c *gin.Context) {
 	u := c.Query("url")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 	if u == "" {
 		c.Status(400)
 		return
@@ -80,20 +93,11 @@ func GetBook(c *gin.Context) {
 
 	if book.ID != 0 {
 		log.Print("Found in DB ", book.ID)
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 		c.JSON(200, book)
 		return
 	} else {
-		log.Print("Not found, reverse proxing ")
-		proxy := httputil.NewSingleHostReverseProxy(url)
-		proxy.ServeHTTP(c.Writer, c.Request)
-		return
+		ch := make(chan Book)
+		go scrape(u, ch)
+		c.JSON(200, <-ch)
 	}
-}
-
-func SaveBook(c *gin.Context) {
-	var book Book
-	c.Bind(&book)
-
-	db.Create(&book)
 }
